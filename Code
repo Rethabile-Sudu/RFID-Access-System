@@ -1,0 +1,68 @@
+#include <SPI.h>
+#include <MFRC522.h>
+
+#define SS_PIN 5
+#define RST_PIN 22
+#define LED_PIN 2
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+
+// Your authorized card UID
+byte authorizedUID[] = {0x23, 0x82, 0x2B, 0xD8};
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
+  SPI.begin(18, 19, 23, SS_PIN);
+  rfid.PCD_Init();
+
+  Serial.println("RFID Reader Ready");
+  Serial.println("Tap your card...");
+}
+
+void loop() {
+
+  if (!rfid.PICC_IsNewCardPresent())
+    return;
+
+  if (!rfid.PICC_ReadCardSerial())
+    return;
+
+  Serial.print("UID: ");
+
+  bool authorized = true;
+
+  for (byte i = 0; i < rfid.uid.size; i++) {
+    Serial.print(rfid.uid.uidByte[i], HEX);
+    Serial.print(" ");
+
+    if (rfid.uid.uidByte[i] != authorizedUID[i]) {
+      authorized = false;
+    }
+  }
+
+  Serial.println();
+
+  if (authorized) {
+    Serial.println("Access Granted");
+
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+    digitalWrite(LED_PIN, LOW);
+  } else {
+    Serial.println("Access Denied");
+
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(LED_PIN, HIGH);
+      delay(200);
+      digitalWrite(LED_PIN, LOW);
+      delay(200);
+    }
+  }
+
+  rfid.PICC_HaltA();
+  rfid.PCD_StopCrypto1();
+}
